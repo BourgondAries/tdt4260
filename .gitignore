@@ -4,5 +4,7 @@
 !framework/
 !framework/dock
 !framework/Dockerfile
+!framework/test_prefetcher.py
+!framework/try.sh
 !framework/prefetcher/
 !framework/prefetcher/prefetcher.cc
