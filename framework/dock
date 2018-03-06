@@ -8,4 +8,4 @@ if [ "$a" = "y" ]; then
 	docker build -t prefetch .
 fi
 
-docker run -i -v $(pwd):/home/kefin/framework prefetch
+docker run -v $(pwd):/home/default prefetch
