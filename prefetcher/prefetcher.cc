@@ -9,7 +9,7 @@
 
 const size_t K = 1; // Sequential prefetch factor
 
-void prefetch_foward(Addr address, size_t blocks) {
+void prefetch_forward(Addr address, size_t blocks) {
 	for (size_t i = 1; i < blocks + 1; ++i) {
 		issue_prefetch(address + i * BLOCK_SIZE);
 	}
@@ -24,18 +24,11 @@ void prefetch_init(void)
 
 void prefetch_access(AccessStat stat)
 {
-	// Tagged prefetch
-	if (get_prefetch_bit(stat.mem_addr) == 0) {
-		set_prefetch_bit(stat.mem_addr);
-		for (size_t i = 1; i < K + 1; ++i) {
-			issue_prefetch(stat.mem_addr + i * BLOCK_SIZE);
-		}
+	// Prefetch on miss
+	Addr pf_addr = stat.mem_addr + BLOCK_SIZE;
+	if (stat.miss && !in_cache(pf_addr)) {
+		prefetch_forward(stat.mem_addr, K);
 	}
-	// // Prefetch on miss
-	// Addr pf_addr = stat.mem_addr + BLOCK_SIZE;
-	// if (stat.miss && !in_cache(pf_addr)) {
-	// 	issue_prefetch(pf_addr);
-	// }
 }
 
 void prefetch_complete(Addr addr) {
