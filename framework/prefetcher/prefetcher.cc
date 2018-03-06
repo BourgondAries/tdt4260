@@ -5,32 +5,40 @@
  */
 
 #include "interface.hh"
+#include <stdlib.h>
 
+const size_t K = 1; // Sequential prefetch factor
+
+void prefetch_forward(Addr address, size_t blocks) {
+	for (size_t i = 1; i < blocks + 1; ++i) {
+		issue_prefetch(address + i * BLOCK_SIZE);
+	}
+}
 
 void prefetch_init(void)
 {
-    /* Called before any calls to prefetch_access. */
-    /* This is the place to initialize data structures. */
-
-    //DPRINTF(HWPrefetch, "Initialized sequential-on-access prefetcher\n");
+	/* Called before any calls to prefetch_access. */
+	/* This is the place to initialize data structures. */
+	DPRINTF(HWPrefetch, "Initialized sequential-on-access prefetcher\n");
 }
 
 void prefetch_access(AccessStat stat)
 {
-    /* pf_addr is now an address within the _next_ cache block */
-    Addr pf_addr = stat.mem_addr + BLOCK_SIZE;
-
-    /*
-     * Issue a prefetch request if a demand miss occured,
-     * and the block is not already in cache.
-     */
-    if (stat.miss && !in_cache(pf_addr)) {
-        issue_prefetch(pf_addr);
-    }
+	// Tagged prefetch
+	if (get_prefetch_bit(stat.mem_addr) == 0) {
+		set_prefetch_bit(stat.mem_addr);
+		prefetch_forward(stat.mem_addr, K);
+	}
+	// // Prefetch on miss
+	// Addr pf_addr = stat.mem_addr + BLOCK_SIZE;
+	// if (stat.miss && !in_cache(pf_addr)) {
+	// 	issue_prefetch(pf_addr);
+	// }
 }
 
 void prefetch_complete(Addr addr) {
-    /*
-     * Called when a block requested by the prefetcher has been loaded.
-     */
+	/*
+	* Called when a block requested by the prefetcher has been loaded.
+	*/
+	DPRINTF(HWPrefetch, "Complete: %d\n", addr);
 }
