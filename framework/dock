@@ -1,0 +1,11 @@
+#! /usr/bin/env bash
+
+set -e
+
+echo "Rebuild? (y/n): "
+read a
+if [ "$a" = "y" ]; then
+	docker build -t prefetch .
+fi
+
+docker run -i -v $(pwd):/home/kefin/framework prefetch
