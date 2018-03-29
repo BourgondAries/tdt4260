@@ -12,7 +12,7 @@
 	const size_t TABLE_SIZE = 100;
 
 	struct Stride {
-	        Addr pc; // instead of addss use AccessStat 
+	        Addr pc; 
 		    Addr lastaddres;
 		    Addr delta;
 		    int state;
@@ -34,34 +34,53 @@
 	  }
 
 	    DPRINTF(HWPrefetch, "Initialized sequential-on-access prefetcher\n");
-	    // printf("Probando 1.. 2.. 3..\n");
+	   
 	}
 
 
 	void loop_prefetch(AccessStat stat) {
 
-
+           // diference between the accesed addresess 
            Addr NewDelta= stat.mem_addr - table[0].lastaddres;
 
+
+
+          
            if(table[0].state== 1){
                   table[0].delta= NewDelta;
                   
                   table[0].state=2;
            }
            else if (table[0].state == 2 ){
-
              
-           	if( NewDelta == table[0].delta && get_prefetch_bit(stat.mem_addr + NewDelta)==false){
-           		issue_prefetch(stat.mem_addr + NewDelta); 
-           		 set_prefetch_bit(stat.mem_addr + NewDelta);
-           	}
+
+             // Issuing just one address
+             
+           	// if( NewDelta == table[0].delta && get_prefetch_bit(stat.mem_addr + NewDelta)==false){
+           	// 	issue_prefetch(stat.mem_addr + NewDelta); 
+           	// 	 set_prefetch_bit(stat.mem_addr + NewDelta);
+           	// }
+             
+
+             // Issuing more than one address at a time. Problem( the first two get_prefetch_bit will fail)
+             if(NewDelta == table[0].delta){
+             	for (int i = 1; i <= 20	;i++){
+             		Addr temporal= stat.mem_addr + i*NewDelta;
+             		if (get_prefetch_bit(temporal)== false){
+             			issue_prefetch(temporal);
+             			set_prefetch_bit(temporal);
+             		}
+             	}
+             }
+
+
            	else table[0].delta = NewDelta;
           
 
            } 	
            
            table[0].lastaddres = stat.mem_addr;
-	       
+
 	      return;
 	} 
 
