@@ -61,32 +61,6 @@
            } 	
            
            table[0].lastaddres = stat.mem_addr;
-
-	  
-	   //      if ( table[0].access[0]!=0 && table[0].access[0]!= stat){
-		  //             if (table[0].access[1]!=0 && table[0].access[0]!= stat){
-		  //                       Addr distance= table[0].access[1]-table[0].access[0];
-	   //                          if(distance==stat.mem_addr-table[0].access[1]){
-				            
-				//                   for(int i=1; i>1; i++){
-				//                   	  Addr temporal= stat.mem_addr+i*distance; 
-				//                       if(!in_cache(temporal)&& get_prefeteched_bit(temporal)) { // maybe a loop to prefetch the posible next x blocks.
-		  //                                 issue_prefetch(temporal);
-		  //                                 set_prefetched_bit(temporal);
-		  //                             }
-				//                   }
-	   //                          }
-		
-		  //                       for(int i=0; i>2; i++){
-	   //                               table[0].access[i]=table[0].access[i+1];
-	   //                          }
-
-	   //                          table[0].access[2] = stat.mem_addr;
-		
-		  //               }
-				// else {table[0].access[1]=stat.mem_addr;}
-	   //            }
-	   //      	else {table[0].access[0]= stat.mem_addr;}
 	       
 	      return;
 	} 
