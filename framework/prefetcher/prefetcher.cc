@@ -1,130 +1,171 @@
+#include "interface.hh"
+#include <stdlib.h>
+
+
+    // Delta Correlated Prediction Table 
+
+
+// IndexTable 
+
+const int maxSize = 100; 
+const int deltaBufferSize = 20; 
+const int posiblePrefetchesSize = 20;
+
+struct entry{
+
+   Addr deltaBuffer[deltaBufferSize]; // buffer of delata stored
+   int deltaBufferPosition; // first free position in the delta buffer 
+   Addr key; // Program Counter 
+   Addr lastaddr; // last addres 
+   Addr lastprefetch; // last addres prefetched 
+
+}; 
+
+struct table {
+      struct entry table[maxSize]; 
+      int elements; 
+      
+};
+
+
+struct table DCPTtable; 
+
+
+
+
+
+ void refresh_or_insert(AccessStat stat) {
+       
+       for( int i=0; i<indexTable.elements; i++){
+			if (DCPTtable.table[i].key == stat.pc){
+   
+                entry temp =  DCPTtable[i];
+				for (int j = i - 1; j >= 0; --j) {
+					DCPTtable.table[j+1] = DCPTtable.table[j];
+				}
+                DCPTtable.table[0] = temp; 
+                loop_prefetch(stat);
+                return;
+			}
+		}
+
+
+	    for (int i= maxSize-1; i > 0; i--){
+             	DCPTtable.table[i] = indexTable.table[i-1];
+            }
+
+			DCPTtable.table[0].key= stat.pc;
+
+
+	    if(DCPTtable.elements < maxSize){DCPTtable.elements++;}
+			// insert pointer 
+		
+		
+
+ }
+
 	
-	#include "interface.hh"
-	#include <stdlib.h>
+   void loop_prefetch(AccessStat stat) {
+          
+          if (DCPTtable.table[0].lastaddr==0){// fist time this pc appears
+          	
 
-	// IDEAS:
-	//  * since the prefetching efficiency varies during the execution of a program, we propose to adapt the number of pref etched blocks according to a
-	//    dynamic measure of prefetching effectiveness.  Can we access the stats whule running the excution? If the first test has already finished can 
-	//    we use it to predict the effectiveness of the next test. Using also the queue size (100).
-	//
-	//  * Once the dcpt works try to speed uo the search with lookup algorithms, and ordeanmiento algorithms 
+          	DCPTtable.table[0].lastaddr= stat.mem_addr; 
 
-	const size_t TABLE_SIZE = 100;
 
-	struct Stride {
-	        Addr pc; 
-		    Addr lastaddres;
-		    Addr delta;
-		    int state;
-	} ;
+          }else {// NOT fist time this pc appears
 
-	struct Stride table[TABLE_SIZE];
+          	 Addr  newDelta = DCPTtable.table[0].lastaddr - stat.mem_addr; // generate the new delta 
+          	// if(newDelta == 0) return; 
+          	 DCPTtable.table[0].lastaddr = stat.mem_addr; // store the new last addres 
+
+          	 if (deltaBufferPosition < 3) {  // deltas less than 3 so no pattern matching is made.
+          	 	DCPTtable.table[0].deltaBuffer[DCPTtable.table[0].deltaBufferPosition]= newDelta;
+          	 	DCPTtable.table[0].deltaBufferPosition++;
+          	 	
+
+
+          	 }else {
+                 
+                 Addr lastDelta = DCPTtable.table[0].deltaBuffer[DCPTtable.table[0].deltaBufferPosition-1]; // create a pair of deltas
+
+                 for (int i = 0; i <= deltaBufferSize; i++){ // pattern matching 
+
+                 	if (DCPTtable.table[0].deltaBuffer[i%deltaBufferSize] == lastDelta && DCPTtable.table[0].deltaBuffer[(i+1)%deltaBufferSize] == newDelta){
+
+
+                            Addr posiblePrefetches[posiblePrefetchesSize] ;
+                            int posPattern = i+2;
+                            Addr lastPosiblePrefetch = stat.mem_addr; 
+
+                            int alreadyPrefetched = 0; 
+
+                            for (int j= 0 ; j < posiblePrefetchesSize ; j++){
+
+                            	
+
+                                 posiblePrefetches[j] = lastPosiblePrefetch + DCPTtable.table[0].deltaBuffer[(posPattern+j)%deltaBufferSize];
+                                 lastPosiblePrefetch = posiblePrefetches[j]; // update posible prefetch 
+
+                                 if(lastPosiblePrefetch == DCPTtable.table[0].lastprefetch) alreadyPrefetched = j;  // check if the posible prefetches are already prefetch 
+                            	
+                            	
+                            }
+                            
+                            for (int i = j; i< posiblePrefetchesSize ; i++){
+                                     Addr toprefetch= posiblePrefetches[j];
+                                   if (get_prefetch_bit(toprefetch)== false){
+
+             			                   issue_prefetch(toprefetch);
+             			                   set_prefetch_bit(toprefetch);
+             			                   DCPTtable.table[0].lastprefetch= toprefetch;
+             		               }
+                            }
+                            
+
+                 	}
+
+                 }
+
+                DCPTtable.table[0].deltaBuffer[DCPTtable.table[0].deltaBufferPosition]= newDelta;
+          	 	DCPTtable.table[0].deltaBufferPosition++;   
+
+          	 }
+
+          }
+
+
+
+   } 
+
 
 
 	void prefetch_init(void)
 	{
+		for( int i=0; i<maxSize; i++){
+			DCPTtable.table[i].key = 0;
+			DCPTtable.table[i].lastaddr = 0;
+			DCPTtable.table[i].lastprefetch= 0;
+
+			DCPTtable.table[i].deltaBufferPosition=0;
+            DCPTtable.elements=0;
+
+            for(int j = 0 ; j < deltaBufferSize; j++){
+            	DCPTtable.table[i].deltaBuffer[j]=0;
+            }
+
+		}
 	    
 
-	  for (int i = 0; i <TABLE_SIZE ; i++){
-	    table[i].pc=0;
-	    table[i].lastaddres=0;
-	    table[i].delta=0;   // diference between the last two addresses. (to catch loops)
-	    table[i].state=0; // can be rather 0 , 1(is in the table but has no delta yet) , 2 (third time this pc produces a miss, there is alredy a delta)
-	    
-	  }
-
-	    DPRINTF(HWPrefetch, "Initialized sequential-on-access prefetcher\n");
 	   
 	}
 
 
-	void loop_prefetch(AccessStat stat) {
-
-           // diference between the accesed addresess 
-           Addr NewDelta= stat.mem_addr - table[0].lastaddres;
-
-
-
-          
-           if(table[0].state== 1){
-                  table[0].delta= NewDelta;
-                  
-                  table[0].state=2;
-           }
-           else if (table[0].state == 2 ){
-             
-
-             // Issuing just one address
-             
-           	// if( NewDelta == table[0].delta && get_prefetch_bit(stat.mem_addr + NewDelta)==false){
-           	// 	issue_prefetch(stat.mem_addr + NewDelta); 
-           	// 	 set_prefetch_bit(stat.mem_addr + NewDelta);
-           	// }
-             
-
-             // Issuing more than one address at a time. Problem( the first two get_prefetch_bit will fail)
-             if(NewDelta == table[0].delta){
-             	for (int i = 1; i <= 20	;i++){
-             		Addr temporal= stat.mem_addr + i*NewDelta;
-             		if (get_prefetch_bit(temporal)== false){
-             			issue_prefetch(temporal);
-             			set_prefetch_bit(temporal);
-             		}
-             	}
-             }
-
-
-           	else table[0].delta = NewDelta;
-          
-
-           } 	
-           
-           table[0].lastaddres = stat.mem_addr;
-
-	      return;
-	} 
-
-
-
-
-	void refresh_or_insert(AccessStat stat) { // checks for loops in the program with the pc 
-	
-
-		//Tries to find the pc in the table
-		for (int i = 0; i < TABLE_SIZE; ++i) {
-			if (table[i].pc == stat.pc) {
-			      
-				Stride temp = table[i];
-				for (int j = i - 1; j >= 0; --j) {
-					table[j+1] = table[j];
-				}
-				table[0] = temp;
-				loop_prefetch(stat);
-				return;
-			}
-		}
-		
-
-
-		// If the pc is not found in the table it is added.
-	     for (int j = TABLE_SIZE - 1; j > 0; --j) {
-			table[j] = table[j - 1];
-	       	}
-		
-	       	table[0].pc = stat.pc;
-	       	table[0].lastaddres= stat.mem_addr;
-	       	table[0].state=1; 
-          
-		
-		
-		
-	}
-
 	void prefetch_access(AccessStat stat)
 	{
-
-		  if(stat.miss == 1){refresh_or_insert(stat);}
+      if(stat.miss == 1){refresh_or_insert(stat);}
 		  return;
+		  
 	}
 
 
